@@ -77,13 +77,13 @@ public class TresEnRaya : MonoBehaviour
             int mejor_casilla = -1;
             int valor;
 
-            // Hacemos minimax para encontrar el mejor valor que tengamos y nos lo guardamos. Nos interesa la posición que elegimos finalmente
+            // Hacemos minimax para encontrar el mejor valor que tengamos y nos lo guardamos. Nos interesa la posición que elegimos como primer movimiento
             for(int i = 0; i < 9; i++)
             {
                 if(board[i] == Turno.vacio)
                 {
                     board[i] = Turno.circulo;
-                    valor = minimax(Turno.cruz, board, -1000, +1000);
+                    valor = minimax(Turno.cruz, board, 1, -1000, +1000);
                     board[i] = Turno.vacio;
 
                     if(mejor_valor < valor)
@@ -141,6 +141,8 @@ public class TresEnRaya : MonoBehaviour
             */
 
             scoreMov = negamax(board, 0);
+            Debug.Log(scoreMov.move);
+            Debug.Log(scoreMov.score);
 
             // Si hemos elegido una casilla entonces ponemos la ficha que corresponde y nos guardamos de quien fue el turno para saber cual es la ficha.
             if (scoreMov.move > -1)
@@ -219,6 +221,14 @@ public class TresEnRaya : MonoBehaviour
         {
             turno = Turno.vacio;
             turno_texto.text = "Empate";
+
+            for(int i = 0; i < 9; i++)
+            {
+                if(board[i] == Turno.circulo)
+                {
+                    Debug.Log("Hey");
+                }
+            }
         }
 
         // Desactivamos la casilla para que no le podamos volver a dar.
@@ -226,17 +236,21 @@ public class TresEnRaya : MonoBehaviour
     }
 
     #region minimaxFunc
-    int minimax(Turno _turno, Turno[] _board, int alpha, int beta)
+    int minimax(Turno _turno, Turno[] _board, int depth, int alpha, int beta)
     {
-        // Este juego es de suma cero, ya que, mientras uno gana (+1) el otro pierde (-1), o queda nadie gana (0).
+        // Este juego es de suma cero, ya que, mientras uno gana (+1) el otro pierde (-1), o nadie gana (0).
         // Para cada vuelta que demos en esta función, iremos comprobando si el movimiento que prueba la IA le da la victoria, pierde, o termina en empate
         if (CondicionVictoria(Turno.circulo, _board))
-            return +1;
+            return +100;
         else if (CondicionVictoria(Turno.cruz, _board))
-            return -1;
+            return -100;
         else if (Empate(_board))
             return 0;
-        
+        if(depth == max_depth)
+        {
+            Debug.Log("evaluacion!!");
+            return otherEvaluation(_turno, _board);
+        }
         int valor;
 
         if(_turno == Turno.circulo)
@@ -247,7 +261,7 @@ public class TresEnRaya : MonoBehaviour
                 if(_board[i] == Turno.vacio)
                 {
                     _board[i] = Turno.circulo;
-                    valor = minimax(Turno.cruz, _board, alpha, beta); // sacamos la respuesta posible del jugador
+                    valor = minimax(Turno.cruz, _board, depth + 1, alpha, beta); // sacamos la respuesta posible del jugador
                     _board[i] = Turno.vacio; // Volvemos a dejarlo como estaba
 
                     // Como viene en la lógica del minimax, si el valor que estamos estudiando en max, es mayor que el valor que tengamos en alpha,
@@ -271,7 +285,7 @@ public class TresEnRaya : MonoBehaviour
                 if(_board[i] == Turno.vacio)
                 {
                     _board[i] = Turno.cruz;
-                    valor = minimax(Turno.circulo, _board, alpha, beta);
+                    valor = minimax(Turno.circulo, _board, depth + 1, alpha, beta);
                     _board[i] = Turno.vacio;
 
                     // Como estamos estudiando la parte del min, si encontramos un valor menor que el que tenemos (beta), nos lo quedamos.
@@ -290,26 +304,26 @@ public class TresEnRaya : MonoBehaviour
 
     }
     #endregion minimaxFunc
-    // Clase que devuelva el score y casilla. Devuelvo -1 si no tengo ninguna casilla
+    
     #region negamaxFunc
     ScoreMov negamax(Turno[] board, int depth)
     {
         ScoreMov newScoreMove;
-        // Si llegamos al maximo de profundida. Return de una funcion de evaluacion (diferencia entre las posibilidades de ganar de uno u otro. En cuantas lineas ganas o pierdes) RETURN. Necesito saber de quien es el turno
-        // valor negamax inicializada a -1000 dentro de esta funcion
         newScoreMove.score = -1000;
         newScoreMove.move = -1;
 
         Turno[] _board = board;
+        int valor_actual;
+        Turno _turno = Turno.vacio;
 
         if (CondicionVictoria(Turno.circulo, _board))
         {
-            newScoreMove.score = +1000;
+            newScoreMove.score = +100;
             return newScoreMove;
         }
         else if (CondicionVictoria(Turno.cruz, _board))
         {
-            newScoreMove.score = -1000;
+            newScoreMove.score = -100;
             return newScoreMove;
         }
         else if (Empate(_board))
@@ -318,17 +332,13 @@ public class TresEnRaya : MonoBehaviour
             return newScoreMove;
         }
 
-        int valor_actual;
-        
-        Turno _turno = Turno.vacio;
-       
         if(depth % 2 == 0)
         {
             // Jugador 2. Positivo Max
             _turno = Turno.circulo;
             if (depth == max_depth)
             {
-                newScoreMove.score = Evaluacion(_turno, _board);
+                newScoreMove.score = otherEvaluation(_turno, _board);
                 return newScoreMove;
             }
         }
@@ -339,7 +349,7 @@ public class TresEnRaya : MonoBehaviour
             _turno = Turno.cruz;
             if(depth == max_depth)
             {
-                newScoreMove.score = -Evaluacion(_turno, _board);
+                newScoreMove.score = -otherEvaluation(_turno, _board);
                 return newScoreMove;
             }
         }
@@ -352,8 +362,8 @@ public class TresEnRaya : MonoBehaviour
                 Turno[] newBoard = _board;
                 newBoard[i] = _turno; // hacemos un nuevo tablero para guardarlo y darselo a los siguientes nodos.
                 valor_actual = -negamax(newBoard, depth + 1).score;
-
-                if (valor_actual > newScoreMove.score)// Aqui actualizo tambien la casilla / mejor accion
+                Debug.Log(depth);
+                if (valor_actual > newScoreMove.score)// Aqui actualizo el valor y la casilla/mejor accion
                 {
                     newScoreMove.score = valor_actual;
                     newScoreMove.move = i;
@@ -447,6 +457,62 @@ public class TresEnRaya : MonoBehaviour
         return victoria;
     }
 
+    private int otherEvaluation(Turno _turno, Turno[] _board)
+    {
+        int evaluacion = 0;
+        int count_line = 0;
+        int count_empty = 0;
+        int count_opponent = 0;
+
+        int[,] condiciones = new int[8, 3] { {0, 1, 2}, {3, 4, 5}, {6, 7, 8},
+                             {0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6} };
+        for (int i = 0; i < 8; i++)
+        {
+            for(int j = 0; j < 3; j++)
+            {
+                if(_board[condiciones[i,j]] == _turno){
+                    count_line++;
+                }
+                else if(_board[condiciones[i, j]] == Turno.vacio)
+                {
+                    count_empty++;
+                }
+                else
+                {
+                    count_opponent++;
+                }
+                // Turno que le hemos pasado. Si tiene una ficha en una linea vacía +1, si dos fichas y un espacio vacío +10, y si tiene las 3 fichas +100
+                if(count_line == 1 && count_empty == 2)
+                {
+                    evaluacion += 1;
+                }
+                else if(count_line == 2 && count_empty == 1)
+                {
+                    evaluacion += 10;
+                }
+                else if(count_line == 3)
+                {
+                    evaluacion += 100;
+                }
+                /// Turno rival. 
+                else if (count_opponent == 1 && count_empty == 2)
+                {
+                    evaluacion -= 1;
+                }
+                else if (count_opponent == 2 && count_empty == 1)
+                {
+                    evaluacion -= 10;
+                }
+                else if (count_opponent == 3)
+                {
+                    evaluacion -= 100;
+                }
+            }
+        }
+
+        return evaluacion;
+    }
+    /*
     private int Evaluacion(Turno _turno, Turno[] _board)
     {
         int evaluacion = -500;
@@ -457,13 +523,13 @@ public class TresEnRaya : MonoBehaviour
         {
             if (_board[condiciones[i, 0]] == _turno && _board[condiciones[i, 1]] == _turno)
             {
-                evaluacion = 500;
+                evaluacion = +500;
             }
         }
 
         return evaluacion;
     }
-
+    */
     private bool Empate(Turno[] _board)
     {
         bool vacio = false;
