@@ -177,8 +177,8 @@ MonoBehaviour:
   - {fileID: 1963875041}
   - {fileID: 1237065889}
   - {fileID: 1762197302}
-  alg: 2
-  max_depth: 50
+  alg: 3
+  max_depth: 9
 --- !u!1 &251888903
 GameObject:
   m_ObjectHideFlags: 0

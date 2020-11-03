@@ -25,7 +25,7 @@ public class TresEnRaya : MonoBehaviour
     Turno turno;
     Turno[] board = new Turno[9];
 
-    public enum algoritmo { MINIMAX, NEGAMAX_OTRO, NEGAMAX, NEGAMAXPRUN, NEGASCOUT};
+    public enum algoritmo { MINIMAX, NEGAMAX, NEGAMAXPRUN, ASPIRATION_SEARCH, NEGASCOUT };
     public algoritmo alg;
 
     // El score es el resultado que nos darán los algoritmos como valor. El movimiento será la casilla correspondiente a ese valor.
@@ -172,6 +172,35 @@ public class TresEnRaya : MonoBehaviour
             }
         }
         #endregion negamaxpruning
+
+        #region busquedaAspitacional
+        if (turno == Turno.circulo && alg == algoritmo.ASPIRATION_SEARCH)
+        {
+            scoreMov = AspirationSearch(board);
+
+            int bestScore = scoreMov.score;
+            int bestPos = scoreMov.move;
+
+            // Si hemos elegido una casilla entonces ponemos la ficha que corresponde y nos guardamos de quien fue el turno para saber cual es la ficha.
+            if (bestPos > -1)
+            {
+                casillas[bestPos] = Instantiate(circulo, casillas[bestPos].transform.position, Quaternion.identity);
+                board[bestPos] = turno;
+            }
+
+            // La misma condición de victoria
+            if (CondicionVictoria(turno, board))
+            {
+                turno = Turno.vacio;    // Para que el jugador no siga dandole a más casillas.
+                turno_texto.text = "¡Ha ganado el Jugador 2!";
+            }
+            else
+            {
+                turno = Turno.cruz;
+                turno_texto.text = "Turno del Jugador 1";
+            }
+        }
+        #endregion busquedaAspitacional
 
         #region negascout
         if (turno == Turno.circulo && alg == algoritmo.NEGASCOUT)
@@ -347,10 +376,10 @@ public class TresEnRaya : MonoBehaviour
     #endregion negamaxPrun
 
     #region busquedaAspitacional
-    int previousScore = 0;  // De donde lo saco?
-    int windowRange = 20;   // De donde lo saco?
-    int minus_infinite = -10;   // De donde lo saco?
-    int infinite = 10;  // De donde lo saco?
+    int previousScore = 0;  
+    int windowRange = 20;   
+    int minus_infinite = -10;   
+    int infinite = 10;  
     ScoreMov AspirationSearch(Turno[] _board)
     {
         int alpha, beta;
@@ -361,7 +390,7 @@ public class TresEnRaya : MonoBehaviour
             beta = previousScore + windowRange;
             while (true)
             {
-                move = negamaxAB(_board, 0, alpha, beta); // Cuando el negamaxAB funcione
+                move = negamaxAB(_board, 1, alpha, beta); // Cuando el negamaxAB funcione
                 if (move.score <= alpha) alpha = minus_infinite;
                 else if (move.score >= beta) beta = infinite;
                 else break;
@@ -370,7 +399,7 @@ public class TresEnRaya : MonoBehaviour
         }
         else
         {
-            move = negamaxAB(_board, 0, minus_infinite, infinite);
+            move = negamaxAB(_board, 1, minus_infinite, infinite);
             previousScore = move.score;
         }
 
