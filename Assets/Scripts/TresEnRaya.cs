@@ -25,7 +25,7 @@ public class TresEnRaya : MonoBehaviour
     Turno turno;
     Turno[] board = new Turno[9];
 
-    public enum algoritmo { MINIMAX, NEGAMAX, NEGAMAXPRUN, NEGASCOUT};
+    public enum algoritmo { MINIMAX, NEGAMAX_OTRO, NEGAMAX, NEGAMAXPRUN, NEGASCOUT};
     public algoritmo alg;
 
     // El score es el resultado que nos darán los algoritmos como valor. El movimiento será la casilla correspondiente a ese valor.
@@ -139,16 +139,16 @@ public class TresEnRaya : MonoBehaviour
                 }
             }
             */
+            scoreMov = negamax(board, 1);
 
-            scoreMov = negamax(board, 0);
-            Debug.Log(scoreMov.move);
-            Debug.Log(scoreMov.score);
+            int bestScore = scoreMov.score;
+            int bestPos = scoreMov.move;
 
             // Si hemos elegido una casilla entonces ponemos la ficha que corresponde y nos guardamos de quien fue el turno para saber cual es la ficha.
-            if (scoreMov.move > -1)
+            if (bestPos > -1)
             {
-                casillas[scoreMov.move] = Instantiate(circulo, casillas[scoreMov.move].transform.position, Quaternion.identity);
-                board[scoreMov.move] = turno;
+                casillas[bestPos] = Instantiate(circulo, casillas[bestPos].transform.position, Quaternion.identity);
+                board[bestPos] = turno;
             }
 
             // La misma condición de victoria
@@ -168,31 +168,15 @@ public class TresEnRaya : MonoBehaviour
         #region negamaxpruning
         if (turno == Turno.circulo && alg == algoritmo.NEGAMAXPRUN)
         {
-            int mejor_valor = 1000;
-            int mejor_casilla = -1;
-            int valor;
-
-            for (int i = 0; i < 9; i++)
-            {
-                if (board[i] == Turno.vacio)
-                {
-                    board[i] = Turno.circulo;
-                    valor = negamaxprun(board, 10, -1000, -1000);
-                    board[i] = Turno.vacio;
-
-                    if (mejor_valor > valor)
-                    {
-                        mejor_valor = valor;
-                        mejor_casilla = i;
-                    }
-                }
-            }
+            scoreMov = negamax(board, 0);
+            Debug.Log(scoreMov.move);
+            Debug.Log(scoreMov.score);
 
             // Si hemos elegido una casilla entonces ponemos la ficha que corresponde y nos guardamos de quien fue el turno para saber cual es la ficha.
-            if (mejor_casilla > -1)
+            if (scoreMov.move > -1)
             {
-                casillas[mejor_casilla] = Instantiate(circulo, casillas[mejor_casilla].transform.position, Quaternion.identity);
-                board[mejor_casilla] = turno;
+                casillas[scoreMov.move] = Instantiate(circulo, casillas[scoreMov.move].transform.position, Quaternion.identity);
+                board[scoreMov.move] = turno;
             }
 
             // La misma condición de victoria
@@ -221,14 +205,6 @@ public class TresEnRaya : MonoBehaviour
         {
             turno = Turno.vacio;
             turno_texto.text = "Empate";
-
-            for(int i = 0; i < 9; i++)
-            {
-                if(board[i] == Turno.circulo)
-                {
-                    Debug.Log("Hey");
-                }
-            }
         }
 
         // Desactivamos la casilla para que no le podamos volver a dar.
@@ -312,130 +288,139 @@ public class TresEnRaya : MonoBehaviour
         newScoreMove.score = -1000;
         newScoreMove.move = -1;
 
-        Turno[] _board = board;
-        int valor_actual;
-        Turno _turno = Turno.vacio;
+        //Los turnos estaban al reves 0(._.)0
+        Turno _turno = depth % 2 == 0 ? Turno.cruz : Turno.circulo;
 
-        if (CondicionVictoria(Turno.circulo, _board))
-        {
-            newScoreMove.score = +100;
-            return newScoreMove;
-        }
-        else if (CondicionVictoria(Turno.cruz, _board))
-        {
-            newScoreMove.score = -100;
-            return newScoreMove;
-        }
-        else if (Empate(_board))
-        {
-            newScoreMove.score = 0;
-            return newScoreMove;
-        }
-
-        if(depth % 2 == 0)
-        {
-            // Jugador 2. Positivo Max
-            _turno = Turno.circulo;
-            if (depth == max_depth)
+        // La victoria basta con comprobarlo solo para el turno anterior
+        if (CondicionVictoria(_turno == Turno.circulo ? Turno.cruz : Turno.circulo, board)) newScoreMove.score = -100;
+        else if (Empate(board)) newScoreMove.score = 0;
+        else {
+            if (depth != max_depth)
             {
-                newScoreMove.score = otherEvaluation(_turno, _board);
-                return newScoreMove;
-            }
-        }
-        else
-        {
-            // Jugador 1. Negativo min
-            // niego la funcion de evaluación
-            _turno = Turno.cruz;
-            if(depth == max_depth)
-            {
-                newScoreMove.score = -otherEvaluation(_turno, _board);
-                return newScoreMove;
-            }
-        }
-        
-
-        for (int i = 0; i < 9; i++)
-        {
-            if (_board[i] == Turno.vacio)
-            {
-                Turno[] newBoard = _board;
-                newBoard[i] = _turno; // hacemos un nuevo tablero para guardarlo y darselo a los siguientes nodos.
-                valor_actual = -negamax(newBoard, depth + 1).score;
-                Debug.Log(depth);
-                if (valor_actual > newScoreMove.score)// Aqui actualizo el valor y la casilla/mejor accion
+                for (int i = 0; i < 9; i++)
                 {
-                    newScoreMove.score = valor_actual;
-                    newScoreMove.move = i;
+                    if (board[i] == Turno.vacio)
+                    {
+                        //Turno[] newBoard = board;
+                        board[i] = _turno; // hacemos un nuevo tablero para guardarlo y darselo a los siguientes nodos.
+                        int valor_actual = -negamax(board, depth + 1).score;
+                        board[i] = Turno.vacio;
+
+                        Debug.Log(depth);
+                        if (valor_actual > newScoreMove.score)// Aqui actualizo el valor y la casilla/mejor accion
+                        {
+                            newScoreMove.score = valor_actual;
+                            newScoreMove.move = i;
+                        }
+                    }
                 }
             }
-        }
+            else newScoreMove.score = depth % 2 == 0 ? -otherEvaluation(_turno, board) : otherEvaluation(_turno, board);                    
+        }   
 
         return newScoreMove; // devuelve el score y la mejor accion
     }
     #endregion negamaxFunc
 
     #region negamaxPrun
-    int negamaxprun(Turno[] _board, int depth, int valor_negamax, int beta)
+    ScoreMov negamaxprun(Turno[] board, int depth, int valor_negamax, int beta)
     {
-        if (CondicionVictoria(Turno.circulo, _board))
-            return +1;
-        else if (CondicionVictoria(Turno.cruz, _board))
-            return -1;
-        else if (Empate(_board))
-            return 0;
+        ScoreMov newScoreMove;
+        newScoreMove.score = -1000;
+        newScoreMove.move = -1;
 
-        int valor_actual;
-        Turno _turno = Turno.vacio;
+        if (CondicionVictoria(Turno.circulo, board)) newScoreMove.score = +100;
+        else if (CondicionVictoria(Turno.cruz, board)) newScoreMove.score = -100;
+        else if (Empate(board)) newScoreMove.score = 0;
 
-        if (depth > 0)
+        Turno _turno = depth % 2 == 0 ? Turno.circulo : Turno.cruz;
+
+        if (depth != max_depth)
         {
-            if (depth % 2 == 0)
+            for (int i = 0; i < 9; i++)
             {
-                // Jugador 1. Positivo Max
-                _turno = Turno.circulo;
-            }
-            else
-            {
-                // Jugador 2. Negativo min
-                _turno = Turno.cruz;
+                if (board[i] == Turno.vacio)
+                {
+                    Turno[] newBoard = board;
+                    newBoard[i] = _turno; // hacemos un nuevo tablero para guardarlo y darselo a los siguientes nodos.
+                    int valor_actual = -negamax(newBoard, depth + 1).score;
+                    //board[i] = Turno.vacio;
+
+                    Debug.Log(depth);
+                    if (valor_actual > newScoreMove.score)// Aqui actualizo el valor y la casilla/mejor accion
+                    {
+                        newScoreMove.score = valor_actual;
+                        newScoreMove.move = i;
+                    }
+                }
             }
         }
         else
         {
-            return valor_negamax;
+            newScoreMove.score = depth % 2 == 0 ? otherEvaluation(_turno, board) : -otherEvaluation(_turno, board);
         }
 
-        for (int i = 0; i < 9 || depth > max_depth; i++)
-        {
-            if (_board[i] == Turno.vacio)
-            {
-
-                _board[i] = _turno;
-                valor_actual = -negamaxprun(_board, depth - 1, valor_negamax, -beta);
-                _board[i] = Turno.vacio;
-
-                if (valor_actual > valor_negamax && _turno == Turno.circulo)
-                    valor_negamax = -valor_actual;
-                else if (valor_actual > valor_negamax && _turno == Turno.cruz)
-                    valor_negamax = valor_actual;
-
-                if(valor_negamax >= beta)
-                {
-                    break;
-                }
-            }
-        }
-
-        return valor_negamax;
+        return newScoreMove; // devuelve el score y la mejor accion
     }
     #endregion negamaxPrun
 
-    int negascout()
+    #region busquedaAspitacional
+    int previousScore = 0;  // De donde lo saco?
+    int windowRange = 20;   // De donde lo saco?
+    int minus_infinite = -10;   // De donde lo saco?
+    int infinite = 10;  // De donde lo saco?
+    ScoreMov AspirationSearch(Turno[] _board)
     {
+        int alpha, beta;
+        ScoreMov move;
+        if(previousScore != 0)
+        {
+            alpha = previousScore - windowRange;
+            beta = previousScore + windowRange;
+            while (true)
+            {
+                move = negamaxprun(_board, 0, alpha, beta); // Cuando el negamaxAB funcione
+                if (move.score <= alpha) alpha = minus_infinite;
+                else if (move.score >= beta) beta = infinite;
+                else break;
+            }
+            previousScore = move.score;
+        }
+        else
+        {
+            move = negamaxprun(_board, 0, minus_infinite, infinite);
+            previousScore = move.score;
+        }
 
-        return 0;
+        return move;
     }
+
+    #endregion busquedaAspitacional
+
+    #region negascout
+    ScoreMov negascout(Turno[] _board, int depth, int alpha, int beta)
+    {
+        ScoreMov newScoreMove;
+        newScoreMove.move = -1;
+        newScoreMove.score = -1000;
+
+        int score = -1000;
+
+        if (CondicionVictoria(Turno.circulo, board)) newScoreMove.score = +100;
+        else if (CondicionVictoria(Turno.cruz, board)) newScoreMove.score = -100;
+        else if (Empate(board)) newScoreMove.score = 0;
+        if(depth == max_depth)
+        {
+            newScoreMove.score = otherEvaluation(Turno.circulo, _board);
+        }
+        else
+        {
+            
+        }
+
+        return newScoreMove;
+    }
+    #endregion negascout
 
     private bool CondicionVictoria(Turno _turno, Turno[] _board)
     {
