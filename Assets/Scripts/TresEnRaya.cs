@@ -205,7 +205,29 @@ public class TresEnRaya : MonoBehaviour
         #region negascout
         if (turno == Turno.circulo && alg == algoritmo.NEGASCOUT)
         {
+            scoreMov = negascout(board, 0, -1000, 1000);
 
+            int bestScore = scoreMov.score;
+            int bestPos = scoreMov.move;
+
+            // Si hemos elegido una casilla entonces ponemos la ficha que corresponde y nos guardamos de quien fue el turno para saber cual es la ficha.
+            if (bestPos > -1)
+            {
+                casillas[bestPos] = Instantiate(circulo, casillas[bestPos].transform.position, Quaternion.identity);
+                board[bestPos] = turno;
+            }
+
+            // La misma condición de victoria
+            if (CondicionVictoria(turno, board))
+            {
+                turno = Turno.vacio;    // Para que el jugador no siga dandole a más casillas.
+                turno_texto.text = "¡Ha ganado el Jugador 2!";
+            }
+            else
+            {
+                turno = Turno.cruz;
+                turno_texto.text = "Turno del Jugador 1";
+            }
         }
         #endregion negascout
         ////////////////////////////////////////////////////////////////
@@ -350,8 +372,7 @@ public class TresEnRaya : MonoBehaviour
                 {
                     if (board[i] == Turno.vacio)
                     {
-                        //Turno[] newBoard = board;
-                        board[i] = _turno; // hacemos un nuevo tablero para guardarlo y darselo a los siguientes nodos.
+                        board[i] = _turno; 
                         int valor_actual = -negamaxAB(board, depth + 1, -beta, -Mathf.Max(alpha, newScoreMove.score)).score;
                         board[i] = Turno.vacio;
 
@@ -415,8 +436,7 @@ public class TresEnRaya : MonoBehaviour
         newScoreMove.move = -1;
         newScoreMove.score = -1000;
 
-        int score = -1000;
-
+        // Ruptura del bucle
         if (CondicionVictoria(Turno.circulo, board)) newScoreMove.score = +100;
         else if (CondicionVictoria(Turno.cruz, board)) newScoreMove.score = -100;
         else if (Empate(board)) newScoreMove.score = 0;
@@ -426,7 +446,49 @@ public class TresEnRaya : MonoBehaviour
         }
         else
         {
-            
+            // No tengo mejor movimiento, 
+            int bestScore = newScoreMove.score;
+            int bestMove = newScoreMove.move;
+
+            //marco el valor de busqueda que estamos probando
+            int adaptativeBeta = beta;
+
+            //generamos los movimientos y los recorremos
+            // llamamos a negamaxAB por cada movimiento. Le paso el alpha y beta adaptadas
+            for (int i = 0; i < 9; i++)
+            {
+                if (board[i] == Turno.vacio)
+                {
+                    newScoreMove = negamaxAB(board, depth + 1, -adaptativeBeta, -Mathf.Max(alpha, bestScore));
+                    int currentScore = -newScoreMove.score;
+                    int currentMove = newScoreMove.move;
+
+                    //actualizamos el mejor score.
+                    if (currentScore > bestScore)
+                    {
+                        if(adaptativeBeta == beta || depth >= max_depth - 2)
+                        {
+                            bestScore = currentScore;
+                            bestMove = currentMove;
+                        }
+                        else
+                        {
+                            newScoreMove = negascout(board, depth, -beta, -currentScore);
+                            bestScore = -newScoreMove.score;
+                            bestMove = newScoreMove.move;
+                        }
+                    }
+
+                    if (bestScore >= beta)
+                    {
+                        newScoreMove.score = bestScore;
+                        newScoreMove.move = bestMove;
+                        return newScoreMove;
+                    }
+                    // vamos ajustando alpha y beta
+                    adaptativeBeta = Mathf.Max(alpha, bestScore) + 1;
+                }
+            }                   
         }
 
         return newScoreMove;
