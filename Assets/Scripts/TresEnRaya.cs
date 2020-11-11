@@ -343,7 +343,7 @@ public class TresEnRaya : MonoBehaviour
             return 0;
         if(depth == max_depth)
         {
-            return otherEvaluation(_turno, _board);
+            return evaluate(_turno);
         }
         int valor;
 
@@ -434,7 +434,7 @@ public class TresEnRaya : MonoBehaviour
                     }
                 }
             }
-            else newScoreMove.score = depth % 2 == 0 ? -otherEvaluation(_turno, board) : otherEvaluation(_turno, board);                    
+            else newScoreMove.score = depth % 2 == 0 ? -evaluate(_turno) : evaluate(_turno);                    
         }   
 
         return newScoreMove; // devuelve el score y la mejor accion
@@ -479,7 +479,7 @@ public class TresEnRaya : MonoBehaviour
                     }
                 }
             }
-            else newScoreMove.score = depth % 2 == 0 ? -otherEvaluation(_turno, board) : otherEvaluation(_turno, board);
+            else newScoreMove.score = depth % 2 == 0 ? -evaluate(_turno) : evaluate(_turno);
         }
 
         return newScoreMove;
@@ -532,7 +532,7 @@ public class TresEnRaya : MonoBehaviour
         else if (Empate(board)) newScoreMove.score = 0;
         if(depth == max_depth)
         {
-            newScoreMove.score = otherEvaluation(Turno.circulo, _board);
+            newScoreMove.score = evaluate(Turno.circulo);
         }
         else
         {
@@ -604,6 +604,38 @@ public class TresEnRaya : MonoBehaviour
         }
 
         return victoria;
+    }
+    int evaluate(Turno _turno)
+    {
+        int evaluacion = 0;
+        int count_line = 0;
+        int count_empty = 0;
+        int count_opponent = 0;
+
+        int[,] condiciones = new int[8, 3] { {0, 1, 2}, {3, 4, 5}, {6, 7, 8},
+                            {0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6} };
+        for (int i = 0; i < 8; i++)
+        {
+            for (int j = 0; j < 3; j++) // Esto dentro del for
+                if (board[condiciones[i, j]] == _turno) count_line++;
+                else if (board[condiciones[i, j]] == Turno.vacio) count_empty++;
+                else count_opponent++;
+
+            // Estro fuera del for
+            // Turno que le hemos pasado. Si tiene una ficha en una linea vacía +1, si dos fichas y un espacio vacío +10, y si tiene las 3 fichas +100
+            if (count_line == 1 && count_empty == 2) evaluacion += 1;
+            else if (count_line == 2 && count_empty == 1) evaluacion += 10;
+            else if (count_line == 3) evaluacion += 100;
+
+            // Turno rival. 
+            else if (count_opponent == 1 && count_empty == 2) evaluacion -= 1;
+            else if (count_opponent == 2 && count_empty == 1) evaluacion -= 10;
+            else if (count_opponent == 3) evaluacion -= 100;
+
+            //Tienes que reiniciar los contadores
+            count_line = count_empty = count_opponent = 0;
+        }
+        return evaluacion;
     }
 
     int otherEvaluation(Turno _turno, Turno[] _board)
@@ -729,7 +761,7 @@ public class TresEnRaya : MonoBehaviour
     ScoreMov Test(Turno[] board, int depth, int gamma)
     {
         bool is_player_turn = (depth & 1) != 1; // True si es turno del jugador
-        ScoreMov best_score_move = new ScoreMov(-1000, -1);
+        ScoreMov best_score_move = new ScoreMov(minus_infinite, -1);
 
         if (depth > max_explored_depth) max_explored_depth = depth; // Se actualiza la maxima profundidad alcanzada. Creo que se usa en la llamada de MTD para poner un limite
 
@@ -744,15 +776,16 @@ public class TresEnRaya : MonoBehaviour
                 else if (record.max_score < gamma) return new ScoreMov(record.max_score, record.best_move);
         }
         // Si no hay un registro de este tablero, lo creamos para guardarlo despues en memoria
-        else record = new Board_record(get_hash_value(), max_depth - depth, -1000, 1000);
+        else record = new Board_record(get_hash_value(), max_depth - depth, minus_infinite, 1000);
 
         //A partir de aqui es un minimax normal
 
         // Si estamos en la última rama de la recursión se evalua la puntuación
         if (should_end(depth, is_player_turn))
-            best_score_move = new ScoreMov(record.min_score = record.max_score = otherEvaluation(is_player_turn ? Turno.cruz : Turno.circulo, board), -1);
+            best_score_move = new ScoreMov(record.min_score = record.max_score = evaluate(is_player_turn ? Turno.cruz : Turno.circulo), -1);
         else // Si no, búsca la siguiente jugada
-            for (int move = 0; move != 9; ++move) // Se explora todas las jugadas posibles
+            for (int move = 0; move != 9; ++move)
+            { // Se explora todas las jugadas posibles
                 if (board[move] == Turno.vacio)
                 {
                     // Se explora las ramas con backtracking para no crear copias del tablero
@@ -764,12 +797,13 @@ public class TresEnRaya : MonoBehaviour
                     {
                         record.best_move = move;
                         best_score_move.score = score;
-                        best_score_move.move = move; 
+                        best_score_move.move = move;
                     }
                     // Min score y max score creo que funcionan como el alpha y beta
                     if (best_score_move.score < gamma) record.max_score = best_score_move.score;
                     else record.min_score = best_score_move.score;
                 }
+            }
         transposition_table.save_record(record); // Se guarda el valor por si se vuelve a obtener la misma jugada en otra rama
         return best_score_move;
     }
