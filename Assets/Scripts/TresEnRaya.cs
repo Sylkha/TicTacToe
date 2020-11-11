@@ -25,7 +25,7 @@ public class TresEnRaya : MonoBehaviour
     Turno turno;
     Turno[] board = new Turno[9];
 
-    public enum algoritmo { MINIMAX, NEGAMAX, NEGAMAXPRUN, ASPIRATION_SEARCH, NEGASCOUT };
+    public enum algoritmo { MINIMAX, NEGAMAX, NEGAMAXPRUN, ASPIRATION_SEARCH, NEGASCOUT, MTD_SSS, MTD_f };
     public algoritmo alg;
 
     // El score es el resultado que nos darán los algoritmos como valor. El movimiento será la casilla correspondiente a ese valor.
@@ -44,6 +44,15 @@ public class TresEnRaya : MonoBehaviour
 
     [SerializeField] int max_depth = 50;
 
+
+    //////////////////////////////////////////////////////////////
+    protected ZobristKey31Bits zobristKeys;
+    protected Transposition_table transpositionTable;
+    public int hashTableLength = 90000000;
+    private int maximumExploredDepth = 0;
+    private int globalGuess = 1000;
+    public int MAX_ITERATIONS = 10;
+
     void Awake()
     {
         turno = Turno.cruz;
@@ -52,6 +61,13 @@ public class TresEnRaya : MonoBehaviour
         // Desde el principio van a estar vacíos y luego los iremos rellenando según vaya avanzando el juego.
         for (int i = 0; i < 9; i++)
             board[i] = Turno.vacio;
+
+        ////////////////////////////////////
+        zobristKeys = GetComponent<ZobristKey31Bits>();
+
+        zobristKeys = new ZobristKey31Bits(42, 2);
+        zobristKeys.Print();
+        transpositionTable = new Transposition_table(hashTableLength);
     }
 
     public void SeleccionarCasilla(byte ID, GameObject casilla)
@@ -103,6 +119,7 @@ public class TresEnRaya : MonoBehaviour
             // Si hemos elegido una casilla entonces ponemos la ficha que corresponde y nos guardamos de quien fue el turno para saber cual es la ficha.
             if(mejor_casilla > -1)
             {
+                casillas[mejor_casilla].SetActive(false);
                 casillas[mejor_casilla] = Instantiate(circulo, casillas[mejor_casilla].transform.position, Quaternion.identity);
                 board[mejor_casilla] = turno;
             }
@@ -132,6 +149,7 @@ public class TresEnRaya : MonoBehaviour
             // Si hemos elegido una casilla entonces ponemos la ficha que corresponde y nos guardamos de quien fue el turno para saber cual es la ficha.
             if (bestPos > -1)
             {
+                casillas[bestPos].SetActive(false);
                 casillas[bestPos] = Instantiate(circulo, casillas[bestPos].transform.position, Quaternion.identity);
                 board[bestPos] = turno;
             }
@@ -161,6 +179,7 @@ public class TresEnRaya : MonoBehaviour
             // Si hemos elegido una casilla entonces ponemos la ficha que corresponde y nos guardamos de quien fue el turno para saber cual es la ficha.
             if (bestPos > -1)
             {
+                casillas[bestPos].SetActive(false);
                 casillas[bestPos] = Instantiate(circulo, casillas[bestPos].transform.position, Quaternion.identity);
                 board[bestPos] = turno;
             }
@@ -190,6 +209,7 @@ public class TresEnRaya : MonoBehaviour
             // Si hemos elegido una casilla entonces ponemos la ficha que corresponde y nos guardamos de quien fue el turno para saber cual es la ficha.
             if (bestPos > -1)
             {
+                casillas[bestPos].SetActive(false);
                 casillas[bestPos] = Instantiate(circulo, casillas[bestPos].transform.position, Quaternion.identity);
                 board[bestPos] = turno;
             }
@@ -219,6 +239,7 @@ public class TresEnRaya : MonoBehaviour
             // Si hemos elegido una casilla entonces ponemos la ficha que corresponde y nos guardamos de quien fue el turno para saber cual es la ficha.
             if (bestPos > -1)
             {
+                casillas[bestPos].SetActive(false);
                 casillas[bestPos] = Instantiate(circulo, casillas[bestPos].transform.position, Quaternion.identity);
                 board[bestPos] = turno;
             }
@@ -236,6 +257,66 @@ public class TresEnRaya : MonoBehaviour
             }
         }
         #endregion negascout
+
+        #region MTD_SSS
+        if (turno == Turno.circulo && alg == algoritmo.MTD_SSS)
+        {
+            scoreMov = MTD(board, globalGuess);
+
+            int bestScore = scoreMov.score;
+            int bestPos = scoreMov.move;
+            Debug.Log(bestScore);
+            // Si hemos elegido una casilla entonces ponemos la ficha que corresponde y nos guardamos de quien fue el turno para saber cual es la ficha.
+            if (bestPos > -1)
+            {
+                casillas[bestPos].SetActive(false);
+                casillas[bestPos] = Instantiate(circulo, casillas[bestPos].transform.position, Quaternion.identity);
+                board[bestPos] = turno;
+            }
+
+            // La misma condición de victoria
+            if (CondicionVictoria(turno, board))
+            {
+                turno = Turno.vacio;    // Para que el jugador no siga dandole a más casillas.
+                turno_texto.text = "¡Ha ganado el Jugador 2!";
+            }
+            else
+            {
+                turno = Turno.cruz;
+                turno_texto.text = "Turno del Jugador 1";
+            }
+        }
+        #endregion MTD_SSS
+
+        #region MTD_f
+        if (turno == Turno.circulo && alg == algoritmo.MTD_f)
+        {
+            scoreMov = MTD(board, 10);
+
+            int bestScore = scoreMov.score;
+            int bestPos = scoreMov.move;
+
+            // Si hemos elegido una casilla entonces ponemos la ficha que corresponde y nos guardamos de quien fue el turno para saber cual es la ficha.
+            if (bestPos > -1)
+            {
+                casillas[bestPos].SetActive(false);
+                casillas[bestPos] = Instantiate(circulo, casillas[bestPos].transform.position, Quaternion.identity);
+                board[bestPos] = turno;
+            }
+
+            // La misma condición de victoria
+            if (CondicionVictoria(turno, board))
+            {
+                turno = Turno.vacio;    // Para que el jugador no siga dandole a más casillas.
+                turno_texto.text = "¡Ha ganado el Jugador 2!";
+            }
+            else
+            {
+                turno = Turno.cruz;
+                turno_texto.text = "Turno del Jugador 1";
+            }
+        }
+        #endregion MTD_f
 
         ////////////////////////////////////////////////////////////////
         // Si hay empate
@@ -262,7 +343,6 @@ public class TresEnRaya : MonoBehaviour
             return 0;
         if(depth == max_depth)
         {
-            Debug.Log("evaluacion!!");
             return otherEvaluation(_turno, _board);
         }
         int valor;
@@ -274,6 +354,7 @@ public class TresEnRaya : MonoBehaviour
             {
                 if(_board[i] == Turno.vacio)
                 {
+                    Debug.Log("nodo");
                     _board[i] = Turno.circulo;
                     valor = minimax(Turno.cruz, _board, depth + 1, alpha, beta); // sacamos la respuesta posible del jugador
                     _board[i] = Turno.vacio; // Volvemos a dejarlo como estaba
@@ -339,6 +420,7 @@ public class TresEnRaya : MonoBehaviour
                 {
                     if (board[i] == Turno.vacio)
                     {
+                        Debug.Log("nodo");
                         board[i] = _turno; // hacemos un nuevo tablero para guardarlo y darselo a los siguientes nodos.
                         int valor_actual = -negamax(board, depth + 1).score;
                         board[i] = Turno.vacio;
@@ -379,6 +461,7 @@ public class TresEnRaya : MonoBehaviour
                 {
                     if (board[i] == Turno.vacio)
                     {
+                        Debug.Log("nodo");
                         board[i] = _turno; 
                         int valor_actual = -negamaxAB(board, depth + 1, -beta, -Mathf.Max(alpha, newScoreMove.score)).score;
                         board[i] = Turno.vacio;
@@ -406,8 +489,8 @@ public class TresEnRaya : MonoBehaviour
     #region busquedaAspitacional
     int previousScore = 0;  
     int windowRange = 20;   
-    int minus_infinite = -10;   
-    int infinite = 10;  
+    int minus_infinite = -100;   
+    int infinite = 100;  
     ScoreMov AspirationSearch(Turno[] _board)
     {
         int alpha, beta;
@@ -502,6 +585,7 @@ public class TresEnRaya : MonoBehaviour
     }
     #endregion negascout
 
+    #region Condiciones_Evaluacion
     bool CondicionVictoria(Turno _turno, Turno[] _board)
     {
         bool victoria = false;
@@ -574,7 +658,6 @@ public class TresEnRaya : MonoBehaviour
                 }
             }
         }
-
         return evaluacion;
     }
 
@@ -596,7 +679,7 @@ public class TresEnRaya : MonoBehaviour
         else
             return false;
     }
-
+    #endregion Condiciones_Evaluacion
 
     #region Test
     int get_hash_value()
@@ -643,7 +726,7 @@ public class TresEnRaya : MonoBehaviour
 
     int max_explored_depth = 0;
 
-    ScoreMov Test(int depth, int gamma)
+    ScoreMov Test(Turno[] board, int depth, int gamma)
     {
         bool is_player_turn = (depth & 1) != 1; // True si es turno del jugador
         ScoreMov best_score_move = new ScoreMov(-1000, -1);
@@ -674,7 +757,7 @@ public class TresEnRaya : MonoBehaviour
                 {
                     // Se explora las ramas con backtracking para no crear copias del tablero
                     board[move] = is_player_turn ? Turno.cruz : Turno.circulo;
-                    int score = -Test((byte)(depth + 1), -gamma).score;
+                    int score = -Test(board, (byte)(depth + 1), -gamma).score;
                     board[move] = Turno.vacio;
 
                     if (score > best_score_move.score) // Se actualiza el mejor score
@@ -691,4 +774,32 @@ public class TresEnRaya : MonoBehaviour
         return best_score_move;
     }
     #endregion Test
+
+    #region MTD
+    public ScoreMov MTD(Turno[] board, int globalGuess)
+    {
+        int i;
+        int gamma, guess = globalGuess;
+        ScoreMov scoringMove = new ScoreMov(0, -1);
+        maximumExploredDepth = 0;
+
+        string output = "";
+        for (i = 0; i < MAX_ITERATIONS; i++)
+        {
+            gamma = guess;
+            scoringMove = Test(board, 0, gamma - 1);
+            guess = scoringMove.score;
+            if (gamma == guess)
+            {
+                globalGuess = guess;
+                output += "guess encontrado en iteracion " + i;
+                return scoringMove;
+            }
+        }
+        output += "guess no encontrado";
+        globalGuess = guess;
+        return scoringMove;
+    }
+    #endregion MTD
+
 }
