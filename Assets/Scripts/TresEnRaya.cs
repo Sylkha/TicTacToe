@@ -33,6 +33,12 @@ public class TresEnRaya : MonoBehaviour
     {
         public int score;
         public int move;
+
+        public ScoreMov(int x, int y)
+        {
+            score = x;
+            move = y;
+        }
     }
     ScoreMov scoreMov;
 
@@ -230,6 +236,7 @@ public class TresEnRaya : MonoBehaviour
             }
         }
         #endregion negascout
+
         ////////////////////////////////////////////////////////////////
         // Si hay empate
         if (Empate(board))
@@ -495,7 +502,7 @@ public class TresEnRaya : MonoBehaviour
     }
     #endregion negascout
 
-    private bool CondicionVictoria(Turno _turno, Turno[] _board)
+    bool CondicionVictoria(Turno _turno, Turno[] _board)
     {
         bool victoria = false;
 
@@ -515,7 +522,7 @@ public class TresEnRaya : MonoBehaviour
         return victoria;
     }
 
-    private int otherEvaluation(Turno _turno, Turno[] _board)
+    int otherEvaluation(Turno _turno, Turno[] _board)
     {
         int evaluacion = 0;
         int count_line = 0;
@@ -552,7 +559,7 @@ public class TresEnRaya : MonoBehaviour
                 {
                     evaluacion += 100;
                 }
-                /// Turno rival. 
+                // Turno rival. 
                 else if (count_opponent == 1 && count_empty == 2)
                 {
                     evaluacion -= 1;
@@ -570,25 +577,8 @@ public class TresEnRaya : MonoBehaviour
 
         return evaluacion;
     }
-    /*
-    private int Evaluacion(Turno _turno, Turno[] _board)
-    {
-        int evaluacion = -500;
-        int[,]condiciones = new int[24, 2] { {0, 1}, {1, 2}, {0, 2}, {3, 4}, {4, 5}, {3, 5}, {6, 7}, {7, 8}, {6, 8},{0, 3}, {3, 6},
-                            {0, 6}, {1, 4}, {4, 7}, {1, 7}, {2, 5}, {5, 8}, {2, 8}, {0, 4}, {4, 8}, {0, 8}, {2, 4}, {4, 6}, {2, 6}  };
 
-        for(int i = 0; i < 24; i++)
-        {
-            if (_board[condiciones[i, 0]] == _turno && _board[condiciones[i, 1]] == _turno)
-            {
-                evaluacion = +500;
-            }
-        }
-
-        return evaluacion;
-    }
-    */
-    private bool Empate(Turno[] _board)
+    bool Empate(Turno[] _board)
     {
         bool vacio = false;
         for (int i = 0; i < 9; i++)
@@ -606,4 +596,99 @@ public class TresEnRaya : MonoBehaviour
         else
             return false;
     }
+
+
+    #region Test
+    int get_hash_value()
+    {
+        int hc = board.Length;
+        for (int i = 0; i < board.Length; ++i) hc = unchecked(hc * 314159 + (int)board[i]);
+        return hc;
+    }
+
+    public class Transposition_table
+    {
+        public int length;
+        Dictionary<int, Board_record> records = new Dictionary<int, Board_record>();
+        public Transposition_table(int _length) => length = _length;
+
+        public void save_record(Board_record record) => records[record.hash_value % length] = record;
+
+        public Board_record GetRecord(int hash)
+        {
+            int key = hash % length;
+            if (records.ContainsKey(key)) return records[key].hash_value == hash ? records[key] : null;
+            return null;
+        }
+    }
+
+    Transposition_table transposition_table = new Transposition_table(99999);
+
+
+    public class Board_record
+    {
+        public int hash_value, min_score, max_score, best_move, depth;
+        public Board_record(int _hash_value = 0, int _min_score = 0, int _max_score = 0, int _best_move = 0, int _depth = 0)
+        {
+            hash_value = _hash_value;
+            min_score = _min_score;
+            max_score = _max_score;
+            best_move = _best_move;
+            depth = _depth;
+        }
+    }
+
+    //Comprueba si es la ultima rama de recursion: condicion de victoria, empate o maxima profundidad alcanzada
+    bool should_end(int depth, bool is_player_turn) => CondicionVictoria(is_player_turn ? Turno.circulo : Turno.cruz, board) || Empate(board) || depth == max_depth;
+
+    int max_explored_depth = 0;
+
+    ScoreMov Test(int depth, int gamma)
+    {
+        bool is_player_turn = (depth & 1) != 1; // True si es turno del jugador
+        ScoreMov best_score_move = new ScoreMov(-1000, -1);
+
+        if (depth > max_explored_depth) max_explored_depth = depth; // Se actualiza la maxima profundidad alcanzada. Creo que se usa en la llamada de MTD para poner un limite
+
+        Board_record record = transposition_table.GetRecord(get_hash_value()); // Busca si este tablero ya existe en la memoria
+
+        if (record != null) // Si tenemos un registro de este tablero.
+        {
+            // Se comprueba si la profundidad es adecuada (si la profundidad explorada de la tabla sacada de la memoria es mayor que la que exploramos ahora. 
+            // Ya que si no, el valor que contiene puede no ser acertado y habra que seguir explorando mas profundidad por si se encuentra una jugada mejor)
+            if (record.depth > max_depth - depth) // Si el score se ajusta al valor gamma que arrastramos, entonces devolvemos la jugada adecuada.
+                if (record.min_score > gamma) return new ScoreMov(record.min_score, record.best_move);
+                else if (record.max_score < gamma) return new ScoreMov(record.max_score, record.best_move);
+        }
+        // Si no hay un registro de este tablero, lo creamos para guardarlo despues en memoria
+        else record = new Board_record(get_hash_value(), max_depth - depth, -1000, 1000);
+
+        //A partir de aqui es un minimax normal
+
+        // Si estamos en la última rama de la recursión se evalua la puntuación
+        if (should_end(depth, is_player_turn))
+            best_score_move = new ScoreMov(record.min_score = record.max_score = otherEvaluation(is_player_turn ? Turno.cruz : Turno.circulo, board), -1);
+        else // Si no, búsca la siguiente jugada
+            for (int move = 0; move != 9; ++move) // Se explora todas las jugadas posibles
+                if (board[move] == Turno.vacio)
+                {
+                    // Se explora las ramas con backtracking para no crear copias del tablero
+                    board[move] = is_player_turn ? Turno.cruz : Turno.circulo;
+                    int score = -Test((byte)(depth + 1), -gamma).score;
+                    board[move] = Turno.vacio;
+
+                    if (score > best_score_move.score) // Se actualiza el mejor score
+                    {
+                        record.best_move = move;
+                        best_score_move.score = score;
+                        best_score_move.move = move; 
+                    }
+                    // Min score y max score creo que funcionan como el alpha y beta
+                    if (best_score_move.score < gamma) record.max_score = best_score_move.score;
+                    else record.min_score = best_score_move.score;
+                }
+        transposition_table.save_record(record); // Se guarda el valor por si se vuelve a obtener la misma jugada en otra rama
+        return best_score_move;
+    }
+    #endregion Test
 }
