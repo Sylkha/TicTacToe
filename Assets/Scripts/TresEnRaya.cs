@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -46,12 +47,16 @@ public class TresEnRaya : MonoBehaviour
 
 
     //////////////////////////////////////////////////////////////
+    /// Para el MTD
     protected ZobristKey31Bits zobristKeys;
     protected Transposition_table transpositionTable;
     public int hashTableLength = 90000000;
     private int maximumExploredDepth = 0;
     private int globalGuess = 1000;
     public int MAX_ITERATIONS = 10;
+
+    /////////////////////
+    public static Stopwatch m_stopwatch = new Stopwatch();
 
     void Awake()
     {
@@ -63,6 +68,7 @@ public class TresEnRaya : MonoBehaviour
             board[i] = Turno.vacio;
 
         ////////////////////////////////////
+        /// Para el MTD y Test
         zobristKeys = GetComponent<ZobristKey31Bits>();
 
         zobristKeys = new ZobristKey31Bits(42, 2);
@@ -92,9 +98,15 @@ public class TresEnRaya : MonoBehaviour
                 turno_texto.text = "Turno del Jugador 2";
             }
         }
+        ////////////////////////////////////////////////////////////////
+        ///Algoritmos
+        
         #region minimax
         if (turno == Turno.circulo && alg == algoritmo.MINIMAX)
         {
+            m_stopwatch.Reset();
+            m_stopwatch.Start();
+
             int mejor_valor = -1;
             int mejor_casilla = -1;
             int valor;
@@ -116,8 +128,11 @@ public class TresEnRaya : MonoBehaviour
                 }
             }
 
+            m_stopwatch.Stop();
+            UnityEngine.Debug.Log("Minimax: " + m_stopwatch.ElapsedMilliseconds + " milisegundos");
+
             // Si hemos elegido una casilla entonces ponemos la ficha que corresponde y nos guardamos de quien fue el turno para saber cual es la ficha.
-            if(mejor_casilla > -1)
+            if (mejor_casilla > -1)
             {
                 casillas[mejor_casilla].SetActive(false);
                 casillas[mejor_casilla] = Instantiate(circulo, casillas[mejor_casilla].transform.position, Quaternion.identity);
@@ -139,9 +154,15 @@ public class TresEnRaya : MonoBehaviour
         #endregion minimax
 
         #region negamax
-        if (turno == Turno.circulo && alg == algoritmo.NEGAMAX) // aqui solo recojo la mejor casilla y valor
+        if (turno == Turno.circulo && alg == algoritmo.NEGAMAX) 
         {
+            m_stopwatch.Reset();
+            m_stopwatch.Start();
+
             scoreMov = negamax(board, 1);
+
+            m_stopwatch.Stop();
+            UnityEngine.Debug.Log("Negamax: " + m_stopwatch.ElapsedMilliseconds + " milisegundos");
 
             int bestScore = scoreMov.score;
             int bestPos = scoreMov.move;
@@ -171,7 +192,13 @@ public class TresEnRaya : MonoBehaviour
         #region negamaxpruning
         if (turno == Turno.circulo && alg == algoritmo.NEGAMAXPRUN)
         {
+            m_stopwatch.Reset();
+            m_stopwatch.Start();
+
             scoreMov = negamaxAB(board, 1, -1000, 1000);
+
+            m_stopwatch.Stop();
+            UnityEngine.Debug.Log("NegamaxAB: " + m_stopwatch.ElapsedMilliseconds + " milisegundos");
 
             int bestScore = scoreMov.score;
             int bestPos = scoreMov.move;
@@ -201,7 +228,13 @@ public class TresEnRaya : MonoBehaviour
         #region busquedaAspitacional
         if (turno == Turno.circulo && alg == algoritmo.ASPIRATION_SEARCH)
         {
+            m_stopwatch.Reset();
+            m_stopwatch.Start();
+
             scoreMov = AspirationSearch(board);
+
+            m_stopwatch.Stop();
+            UnityEngine.Debug.Log("Aspiration Search: " + m_stopwatch.ElapsedMilliseconds + " milisegundos");
 
             int bestScore = scoreMov.score;
             int bestPos = scoreMov.move;
@@ -231,7 +264,13 @@ public class TresEnRaya : MonoBehaviour
         #region negascout
         if (turno == Turno.circulo && alg == algoritmo.NEGASCOUT)
         {
+            m_stopwatch.Reset();
+            m_stopwatch.Start();
+
             scoreMov = negascout(board, 0, -1000, 1000);
+
+            m_stopwatch.Stop();
+            UnityEngine.Debug.Log("Negascout: " + m_stopwatch.ElapsedMilliseconds + " milisegundos");
 
             int bestScore = scoreMov.score;
             int bestPos = scoreMov.move;
@@ -261,11 +300,17 @@ public class TresEnRaya : MonoBehaviour
         #region MTD_SSS
         if (turno == Turno.circulo && alg == algoritmo.MTD_SSS)
         {
+            m_stopwatch.Reset();
+            m_stopwatch.Start();
+
             scoreMov = MTD(board, globalGuess);
+
+            m_stopwatch.Stop();
+            UnityEngine.Debug.Log("MTD-SSS: " + m_stopwatch.ElapsedMilliseconds + " milisegundos");
 
             int bestScore = scoreMov.score;
             int bestPos = scoreMov.move;
-            Debug.Log(bestScore);
+
             // Si hemos elegido una casilla entonces ponemos la ficha que corresponde y nos guardamos de quien fue el turno para saber cual es la ficha.
             if (bestPos > -1)
             {
@@ -291,7 +336,13 @@ public class TresEnRaya : MonoBehaviour
         #region MTD_f
         if (turno == Turno.circulo && alg == algoritmo.MTD_f)
         {
+            m_stopwatch.Reset();
+            m_stopwatch.Start();
+
             scoreMov = MTD(board, 10);
+
+            m_stopwatch.Stop();
+            UnityEngine.Debug.Log("MTD-f: " + m_stopwatch.ElapsedMilliseconds + " milisegundos");
 
             int bestScore = scoreMov.score;
             int bestPos = scoreMov.move;
@@ -354,7 +405,7 @@ public class TresEnRaya : MonoBehaviour
             {
                 if(_board[i] == Turno.vacio)
                 {
-                    Debug.Log("nodo");
+                    UnityEngine.Debug.Log("nodo");
                     _board[i] = Turno.circulo;
                     valor = minimax(Turno.cruz, _board, depth + 1, alpha, beta); // sacamos la respuesta posible del jugador
                     _board[i] = Turno.vacio; // Volvemos a dejarlo como estaba
@@ -407,25 +458,25 @@ public class TresEnRaya : MonoBehaviour
         newScoreMove.score = -1000;
         newScoreMove.move = -1;
 
-        //Los turnos estaban al reves 0(._.)0
+        //Si es par es turno del jugador, si no es de la IA
         Turno _turno = depth % 2 == 0 ? Turno.cruz : Turno.circulo;
 
-        // La victoria basta con comprobarlo solo para el turno anterior
+        // La victoria basta con comprobarla solo para el turno anterior
         if (CondicionVictoria(_turno == Turno.circulo ? Turno.cruz : Turno.circulo, board)) newScoreMove.score = -100;
         else if (Empate(board)) newScoreMove.score = 0;
+        // Si no hemos llegado a un estado final comprobamos si al menos hemos llegado a la profundidad máxima
         else {
             if (depth != max_depth)
             {
-                for (int i = 0; i < 9; i++)
+                for (int i = 0; i < 9; i++) // Recorremos todos los posibles movimientos
                 {
                     if (board[i] == Turno.vacio)
                     {
-                        Debug.Log("nodo");
+                        UnityEngine.Debug.Log("nodo");
                         board[i] = _turno; // hacemos un nuevo tablero para guardarlo y darselo a los siguientes nodos.
                         int valor_actual = -negamax(board, depth + 1).score;
                         board[i] = Turno.vacio;
 
-                        Debug.Log(depth);
                         if (valor_actual > newScoreMove.score)// Aqui actualizo el valor y la casilla/mejor accion
                         {
                             newScoreMove.score = valor_actual;
@@ -461,12 +512,11 @@ public class TresEnRaya : MonoBehaviour
                 {
                     if (board[i] == Turno.vacio)
                     {
-                        Debug.Log("nodo");
+                        UnityEngine.Debug.Log("nodo");
                         board[i] = _turno; 
                         int valor_actual = -negamaxAB(board, depth + 1, -beta, -Mathf.Max(alpha, newScoreMove.score)).score;
                         board[i] = Turno.vacio;
 
-                        Debug.Log(depth);
                         if (valor_actual > newScoreMove.score)// Aqui actualizo el valor y la casilla/mejor accion
                         {
                             newScoreMove.score = valor_actual;
@@ -540,10 +590,10 @@ public class TresEnRaya : MonoBehaviour
             int bestScore = newScoreMove.score;
             int bestMove = newScoreMove.move;
 
-            //marco el valor de busqueda que estamos probando
+            // marco el valor de busqueda que estamos probando
             int adaptativeBeta = beta;
 
-            //generamos los movimientos y los recorremos
+            // generamos los movimientos y los recorremos
             // llamamos a negamaxAB por cada movimiento. Le paso el alpha y beta adaptadas
             for (int i = 0; i < 9; i++)
             {
@@ -553,7 +603,7 @@ public class TresEnRaya : MonoBehaviour
                     int currentScore = -newScoreMove.score;
                     int currentMove = newScoreMove.move;
 
-                    //actualizamos el mejor score.
+                    // actualizamos el mejor score.
                     if (currentScore > bestScore)
                     {
                         if(adaptativeBeta == beta || depth >= max_depth - 2)
@@ -584,134 +634,6 @@ public class TresEnRaya : MonoBehaviour
         return newScoreMove;
     }
     #endregion negascout
-
-    #region Condiciones_Evaluacion
-    bool CondicionVictoria(Turno _turno, Turno[] _board)
-    {
-        bool victoria = false;
-
-        // Sacamos nuestras condiciones de nuestro tablero, 8 combinaciones posibles:
-        int[,] condiciones = new int[8, 3] { {0, 1, 2}, {3, 4, 5}, {6, 7, 8},
-                             {0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6} };
-
-        // Hacemos comprobación de las condiciones por si alguna se cumple.
-        for(int i = 0; i < 8; i++)
-        {
-            if(_board[condiciones[i,0]] == _turno && _board[condiciones[i, 1]] == _turno && _board[condiciones[i, 2]] == _turno)
-            {
-                victoria = true;
-            }
-        }
-
-        return victoria;
-    }
-    int evaluate(Turno _turno)
-    {
-        int evaluacion = 0;
-        int count_line = 0;
-        int count_empty = 0;
-        int count_opponent = 0;
-
-        int[,] condiciones = new int[8, 3] { {0, 1, 2}, {3, 4, 5}, {6, 7, 8},
-                            {0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6} };
-        for (int i = 0; i < 8; i++)
-        {
-            for (int j = 0; j < 3; j++) // Esto dentro del for
-                if (board[condiciones[i, j]] == _turno) count_line++;
-                else if (board[condiciones[i, j]] == Turno.vacio) count_empty++;
-                else count_opponent++;
-
-            // Estro fuera del for
-            // Turno que le hemos pasado. Si tiene una ficha en una linea vacía +1, si dos fichas y un espacio vacío +10, y si tiene las 3 fichas +100
-            if (count_line == 1 && count_empty == 2) evaluacion += 1;
-            else if (count_line == 2 && count_empty == 1) evaluacion += 10;
-            else if (count_line == 3) evaluacion += 100;
-
-            // Turno rival. 
-            else if (count_opponent == 1 && count_empty == 2) evaluacion -= 1;
-            else if (count_opponent == 2 && count_empty == 1) evaluacion -= 10;
-            else if (count_opponent == 3) evaluacion -= 100;
-
-            //Tienes que reiniciar los contadores
-            count_line = count_empty = count_opponent = 0;
-        }
-        return evaluacion;
-    }
-
-    int otherEvaluation(Turno _turno, Turno[] _board)
-    {
-        int evaluacion = 0;
-        int count_line = 0;
-        int count_empty = 0;
-        int count_opponent = 0;
-
-        int[,] condiciones = new int[8, 3] { {0, 1, 2}, {3, 4, 5}, {6, 7, 8},
-                             {0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6} };
-        for (int i = 0; i < 8; i++)
-        {
-            for(int j = 0; j < 3; j++)
-            {
-                if(_board[condiciones[i,j]] == _turno){
-                    count_line++;
-                }
-                else if(_board[condiciones[i, j]] == Turno.vacio)
-                {
-                    count_empty++;
-                }
-                else
-                {
-                    count_opponent++;
-                }
-                // Turno que le hemos pasado. Si tiene una ficha en una linea vacía +1, si dos fichas y un espacio vacío +10, y si tiene las 3 fichas +100
-                if(count_line == 1 && count_empty == 2)
-                {
-                    evaluacion += 1;
-                }
-                else if(count_line == 2 && count_empty == 1)
-                {
-                    evaluacion += 10;
-                }
-                else if(count_line == 3)
-                {
-                    evaluacion += 100;
-                }
-                // Turno rival. 
-                else if (count_opponent == 1 && count_empty == 2)
-                {
-                    evaluacion -= 1;
-                }
-                else if (count_opponent == 2 && count_empty == 1)
-                {
-                    evaluacion -= 10;
-                }
-                else if (count_opponent == 3)
-                {
-                    evaluacion -= 100;
-                }
-            }
-        }
-        return evaluacion;
-    }
-
-    bool Empate(Turno[] _board)
-    {
-        bool vacio = false;
-        for (int i = 0; i < 9; i++)
-        {
-            if (_board[i] == Turno.vacio)
-            {
-                vacio = true;
-                break;
-            }
-        }
-
-        // Si ni el jugador 1 ni el 2 han ganado y no hay espacios libres en el tablero, es un empate
-        if (CondicionVictoria(Turno.cruz, _board) == false && CondicionVictoria(Turno.circulo, _board) == false && vacio == false)
-            return true;
-        else
-            return false;
-    }
-    #endregion Condiciones_Evaluacion
 
     #region Test
     int get_hash_value()
@@ -761,16 +683,16 @@ public class TresEnRaya : MonoBehaviour
     ScoreMov Test(Turno[] board, int depth, int gamma)
     {
         bool is_player_turn = (depth & 1) != 1; // True si es turno del jugador
-        ScoreMov best_score_move = new ScoreMov(minus_infinite, -1);
+        ScoreMov scoreMove = new ScoreMov(minus_infinite, -1);
 
-        if (depth > max_explored_depth) max_explored_depth = depth; // Se actualiza la maxima profundidad alcanzada. Creo que se usa en la llamada de MTD para poner un limite
+        if (depth > max_explored_depth) max_explored_depth = depth; // Se actualiza la maxima profundidad alcanzada. 
 
         Board_record record = transposition_table.GetRecord(get_hash_value()); // Busca si este tablero ya existe en la memoria
 
         if (record != null) // Si tenemos un registro de este tablero.
         {
             // Se comprueba si la profundidad es adecuada (si la profundidad explorada de la tabla sacada de la memoria es mayor que la que exploramos ahora. 
-            // Ya que si no, el valor que contiene puede no ser acertado y habra que seguir explorando mas profundidad por si se encuentra una jugada mejor)
+            // porque si el valor que contiene no es acertado habra que seguir explorando mas profundidad por si se encuentra una jugada mejor)
             if (record.depth > max_depth - depth) // Si el score se ajusta al valor gamma que arrastramos, entonces devolvemos la jugada adecuada.
                 if (record.min_score > gamma) return new ScoreMov(record.min_score, record.best_move);
                 else if (record.max_score < gamma) return new ScoreMov(record.max_score, record.best_move);
@@ -778,34 +700,35 @@ public class TresEnRaya : MonoBehaviour
         // Si no hay un registro de este tablero, lo creamos para guardarlo despues en memoria
         else record = new Board_record(get_hash_value(), max_depth - depth, minus_infinite, 1000);
 
-        //A partir de aqui es un minimax normal
+        //A partir de aqui es como un negamax 
 
         // Si estamos en la última rama de la recursión se evalua la puntuación
         if (should_end(depth, is_player_turn))
-            best_score_move = new ScoreMov(record.min_score = record.max_score = evaluate(is_player_turn ? Turno.cruz : Turno.circulo), -1);
+            scoreMove = new ScoreMov(record.min_score = record.max_score = evaluate(is_player_turn ? Turno.cruz : Turno.circulo), -1);
         else // Si no, búsca la siguiente jugada
             for (int move = 0; move != 9; ++move)
             { // Se explora todas las jugadas posibles
                 if (board[move] == Turno.vacio)
                 {
+                    UnityEngine.Debug.Log("nodo");
                     // Se explora las ramas con backtracking para no crear copias del tablero
                     board[move] = is_player_turn ? Turno.cruz : Turno.circulo;
                     int score = -Test(board, (byte)(depth + 1), -gamma).score;
                     board[move] = Turno.vacio;
 
-                    if (score > best_score_move.score) // Se actualiza el mejor score
+                    if (score > scoreMove.score) // Se actualiza el mejor score
                     {
                         record.best_move = move;
-                        best_score_move.score = score;
-                        best_score_move.move = move;
+                        scoreMove.score = score;
+                        scoreMove.move = move;
                     }
                     // Min score y max score creo que funcionan como el alpha y beta
-                    if (best_score_move.score < gamma) record.max_score = best_score_move.score;
-                    else record.min_score = best_score_move.score;
+                    if (scoreMove.score < gamma) record.max_score = scoreMove.score;
+                    else record.min_score = scoreMove.score;
                 }
             }
         transposition_table.save_record(record); // Se guarda el valor por si se vuelve a obtener la misma jugada en otra rama
-        return best_score_move;
+        return scoreMove;
     }
     #endregion Test
 
@@ -836,4 +759,77 @@ public class TresEnRaya : MonoBehaviour
     }
     #endregion MTD
 
+    #region Condiciones_Evaluacion
+    bool CondicionVictoria(Turno _turno, Turno[] _board)
+    {
+        bool victoria = false;
+
+        // Sacamos nuestras condiciones de nuestro tablero, 8 combinaciones posibles:
+        int[,] condiciones = new int[8, 3] { {0, 1, 2}, {3, 4, 5}, {6, 7, 8},
+                             {0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6} };
+
+        // Hacemos comprobación de las condiciones por si alguna se cumple.
+        for(int i = 0; i < 8; i++)
+        {
+            if(_board[condiciones[i,0]] == _turno && _board[condiciones[i, 1]] == _turno && _board[condiciones[i, 2]] == _turno)
+            {
+                victoria = true;
+            }
+        }
+
+        return victoria;
+    }
+    int evaluate(Turno _turno)
+    {
+        int evaluacion = 0;
+        int count_line = 0;
+        int count_empty = 0;
+        int count_opponent = 0;
+
+        int[,] condiciones = new int[8, 3] { {0, 1, 2}, {3, 4, 5}, {6, 7, 8},
+                            {0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6} };
+        for (int i = 0; i < 8; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            { 
+                if (board[condiciones[i, j]] == _turno) count_line++;
+                else if (board[condiciones[i, j]] == Turno.vacio) count_empty++;
+                else count_opponent++;
+            }
+            
+            // Turno que le hemos pasado. Si tiene una ficha en una linea vacía +1, si dos fichas y un espacio vacío +10, y si tiene las 3 fichas +100
+            if (count_line == 1 && count_empty == 2) evaluacion += 1;
+            else if (count_line == 2 && count_empty == 1) evaluacion += 10;
+            else if (count_line == 3) evaluacion += 100;
+
+            // Turno rival. 
+            else if (count_opponent == 1 && count_empty == 2) evaluacion -= 1;
+            else if (count_opponent == 2 && count_empty == 1) evaluacion -= 10;
+            else if (count_opponent == 3) evaluacion -= 100;
+
+            //Reiniciamos los contadores
+            count_line = count_empty = count_opponent = 0;
+        }
+        return evaluacion;
+    }
+
+    bool Empate(Turno[] _board)
+    {
+        bool vacio = false;
+        for (int i = 0; i < 9; i++)
+        {
+            if (_board[i] == Turno.vacio)
+            {
+                vacio = true;
+                break;
+            }
+        }
+
+        // Si ni el jugador 1 ni el 2 han ganado y no hay espacios libres en el tablero, es un empate
+        if (CondicionVictoria(Turno.cruz, _board) == false && CondicionVictoria(Turno.circulo, _board) == false && vacio == false)
+            return true;
+        else
+            return false;
+    }
+    #endregion Condiciones_Evaluacion
 }
